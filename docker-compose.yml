@@ -6,9 +6,9 @@ services:
     container_name: loan_postgres
     restart: always
     environment:
-      POSTGRES_DB: loan_matcher_db
+      POSTGRES_DB: 
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
+      POSTGRES_PASSWORD: 
     ports:
       - "5432:5432"
     volumes:
