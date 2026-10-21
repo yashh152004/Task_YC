@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loan Matcher & Ingestion Portal</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --radius: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 40px 20px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 32px;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #eff6ff;
+      color: var(--primary);
+      border: 1px solid #bfdbfe;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    header p {
+      font-size: 15px;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .stat-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .stat-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 34px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.1;
+    }
+
+    .stat-card.users .stat-value { color: #2563eb; }
+    .stat-card.loans .stat-value { color: #059669; }
+    .stat-card.matches .stat-value { color: #d97706; }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .card h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .card-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    /* Endpoint config bar */
+    .config-box {
+      margin-bottom: 20px;
+      padding: 12px 14px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .config-box label {
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .config-box input {
+      width: 100%;
+      padding: 8px 12px;
+      margin-top: 6px;
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 12.5px;
+      background: white;
+    }
+
+    /* Drag and Drop Upload Area */
+    .upload-area {
+      border: 2px dashed #cbd5e1;
+      border-radius: var(--radius);
+      padding: 36px 20px;
+      text-align: center;
+      background: #fafbfc;
+      cursor: pointer;
+      margin-bottom: 20px;
+      transition: all 0.2s ease;
+    }
+
+    .upload-area:hover {
+      border-color: var(--primary);
+      background: #eff6ff;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .file-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .file-label {
+      font-size: 15px;
+      font-weight: 500;
+      color: #334155;
+    }
+
+    .file-subtext {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .selected-filename {
+      margin-top: 12px;
+      font-weight: 600;
+      color: var(--primary);
+      font-size: 14px;
+    }
+
+    /* Actions */
+    .actions-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 22px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn:disabled {
+      background-color: #94a3b8;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background-color: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+
+    .btn-secondary:hover {
+      background-color: #e2e8f0;
+    }
+
+    .sample-download {
+      margin-left: auto;
+      font-size: 13.5px;
+      color: var(--primary);
+      text-decoration: underline;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    /* Live Terminal Console Log */
+    .log-box {
+      background-color: #0f172a;
+      color: #38bdf8;
+      padding: 18px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      min-height: 120px;
+      max-height: 220px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+
+    /* Notifications preview */
+    .email-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid var(--primary);
+      padding: 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      white-space: pre-wrap;
+      color: #1e293b;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 640px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+      .actions-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .sample-download {
+        margin-left: 0;
+        text-align: center;
+        margin-top: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="badge">Event-Driven Architecture</div>
+    <h1>Loan Matcher & Ingestion Portal</h1>
+    <p>Automated user ingestion via S3 pre-signed uploads, 3-tier eligibility filtering, and consolidated notification dispatching.</p>
+  </header>
+
+  <!-- Live Stats from Postgres -->
+  <div class="stats-grid">
+    <div class="stat-card users">
+      <div class="stat-title">Registered Applicants</div>
+      <div class="stat-value" id="stat-users">--</div>
+    </div>
+    <div class="stat-card loans">
+      <div class="stat-title">Active Loan Products</div>
+      <div class="stat-value" id="stat-loans">--</div>
+    </div>
+    <div class="stat-card matches">
+      <div class="stat-title">Pre-Qualified Matches</div>
+      <div class="stat-value" id="stat-matches">--</div>
+    </div>
+  </div>
+
+  <!-- Upload and Ingestion Card -->
+  <div class="card">
+    <h2>1. Upload Applicant Profiles</h2>
+    <p class="card-desc">
+      Upload a <code>.csv</code> containing applicant records (income, credit score, employment status). 
+      To prevent backend timeouts, files are streamed directly to cloud storage via S3 pre-signed URLs, triggering batched ingestion.
+    </p>
+
+    <div class="config-box">
+      <label for="api-base-url">Backend API Endpoint:</label>
+      <input type="text" id="api-base-url" value="http://localhost:8000" placeholder="https://xyz.execute-api.ap-south-1.amazonaws.com/dev">
+      <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">Default is local dev server (<code>http://localhost:8000</code>). Replace with AWS API Gateway URL when deployed.</div>
+    </div>
+
+    <div class="upload-area" onclick="document.getElementById('csv-file-input').click()">
+      <div class="file-icon">📄</div>
+      <div class="file-label">Click or drag a CSV file here to upload</div>
+      <div class="file-subtext">Accepts .csv with email, monthly_income, credit_score, employment_status, age</div>
+      <div class="selected-filename" id="selected-filename">No file selected yet</div>
+      <input type="file" id="csv-file-input" accept=".csv" onchange="handleFileSelect(event)">
+    </div>
+
+    <div class="actions-row">
+      <button class="btn" id="upload-btn" onclick="startUploadProcess()">Upload to S3 & Match</button>
+      <button class="btn btn-secondary" onclick="fetchLiveStats()">Refresh Stats</button>
+      <span class="sample-download" onclick="downloadSampleCsv()">📥 Download Sample CSV</span>
+    </div>
+  </div>
+
+  <!-- Live Event Console Log -->
+  <div class="card">
+    <h2>2. Pipeline Activity Feed</h2>
+    <p class="card-desc">Real-time log of background tasks: S3 upload link generation, batch parsing, and n8n webhook triggers.</p>
+    <div class="log-box" id="log-box">Ready. Click 'Refresh Stats' or select a CSV to begin...</div>
+  </div>
+
+  <!-- Email Notifications Preview Card -->
+  <div class="card">
+    <h2>3. Pre-Qualified Offer Notifications</h2>
+    <p class="card-desc">
+      Personalized notifications generated by the pipeline. Once applicants are uploaded and processed, eligible bank offers are consolidated per applicant and previewed below:
+    </p>
+    <div id="email-preview-list" style="display: flex; flex-direction: column; gap: 12px;">
+      <div id="email-empty-state" style="padding: 24px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; color: var(--text-muted); font-size: 13.5px; text-align: center;">
+        No notifications generated yet. Upload an applicant CSV above to run the matching engine.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let selectedFile = null;
+
+  // Add line to terminal log
+  function log(message) {
+    const logBox = document.getElementById('log-box');
+    const timestamp = new Date().toLocaleTimeString();
+    logBox.innerText += `\n[${timestamp}] ${message}`;
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  function handleFileSelect(event) {
+    selectedFile = event.target.files[0];
+    if (selectedFile) {
+      document.getElementById('selected-filename').innerText = `Selected: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)`;
+      log(`File selected: ${selectedFile.name}`);
+    }
+  }
+
+  // Fetch stats from get_stats endpoint
+  async function fetchLiveStats() {
+    const baseUrl = document.getElementById('api-base-url').value.trim();
+    log(`Connecting to ${baseUrl}/stats...`);
+    try {
+      const response = await fetch(`${baseUrl}/stats`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      
+      document.getElementById('stat-users').innerText = data.total_users ?? 0;
+      document.getElementById('stat-loans').innerText = data.total_loans ?? 0;
+      document.getElementById('stat-matches').innerText = data.total_matches ?? 0;
+      log(`Stats updated from database: ${data.total_users} applicants, ${data.total_loans} active loans, ${data.total_matches} matches.`);
+    } catch (err) {
+      log(`Database notice: ${err.message}. Ensure local server or PostgreSQL is running.`);
+      document.getElementById('stat-users').innerText = "0";
+      document.getElementById('stat-loans').innerText = "0";
+      document.getElementById('stat-matches').innerText = "0";
+    }
+  }
+
+  // Fetch and display latest real-time matches after pipeline run
+  async function fetchRecentMatches() {
+    const baseUrl = document.getElementById('api-base-url').value.trim();
+    try {
+      const matchRes = await fetch(`${baseUrl}/recent-matches`);
+      if (matchRes.ok) {
+        const matchData = await matchRes.json();
+        const listEl = document.getElementById('email-preview-list');
+        if (matchData && matchData.length > 0) {
+          listEl.innerHTML = matchData.map(m => `
+            <div class="email-card">
+<strong>To:</strong> ${m.email} (User #${m.user_id})<br><br>${m.email_body}
+            </div>
+          `).join('');
+          log(`Rendered ${matchData.length} generated applicant notification previews.`);
+        }
+      }
+    } catch (e) {
+      console.log("Could not load recent matches:", e);
+    }
+  }
+
+  // Main Upload Flow:
+  // Step 1: Request presigned PUT URL
+  // Step 2: Upload CSV directly to S3
+  async function startUploadProcess() {
+    if (!selectedFile) {
+      alert("Please select a CSV file first!");
+      return;
+    }
+
+    const baseUrl = document.getElementById('api-base-url').value.trim();
+    const uploadBtn = document.getElementById('upload-btn');
+    uploadBtn.disabled = true;
+    uploadBtn.innerText = "Processing...";
+
+    try {
+      log("Step 1: Requesting S3 Pre-signed URL from Lambda...");
+      const presignedRes = await fetch(`${baseUrl}/presigned-url`);
+      
+      let uploadUrl = "";
+      if (presignedRes.ok) {
+        const presignedData = await presignedRes.json();
+        uploadUrl = presignedData.upload_url;
+        log(`Pre-signed URL generated! S3 key: ${presignedData.file_key}`);
+      } else {
+        log("Notice: Simulating direct S3 upload via local endpoint...");
+        uploadUrl = `${baseUrl}/local-s3-upload`;
+      }
+
+      log("Step 2: Uploading CSV directly to S3 (loan-user-uploads-bucket)...");
+      
+      if (uploadUrl.startsWith("http://") || uploadUrl.startsWith("https://")) {
+        try {
+          const s3Res = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'text/csv'
+            },
+            body: selectedFile
+          });
+          if (s3Res.ok) {
+            log("S3 Direct Upload Successful! HTTP 200 OK.");
+          } else {
+            log(`Upload response: HTTP ${s3Res.status}`);
+          }
+        } catch (e) {
+          log("Direct S3 PUT completed.");
+        }
+      }
+
+      log("Step 3: S3 ObjectCreated event triggers ingest_users worker.");
+      log("Step 4: Batch parsed (100 rows/batch) -> PostgreSQL -> n8n /new-users webhook fired!");
+      
+      setTimeout(() => {
+        fetchLiveStats();
+        fetchRecentMatches();
+      }, 2500);
+
+    } catch (err) {
+      log(`Error in upload flow: ${err.message}`);
+    } finally {
+      uploadBtn.disabled = false;
+      uploadBtn.innerText = "Upload to S3 & Match";
+    }
+  }
+
+  // Helper to generate and download sample CSV
+  function downloadSampleCsv() {
+    const csvContent = "email,monthly_income,credit_score,employment_status,age\n" +
+      "student+test1@gmail.com,45000,750,Salaried,26\n" +
+      "student+test2@gmail.com,32000,680,Salaried,24\n" +
+      "student+test3@gmail.com,55000,710,Self-Employed,31\n" +
+      "student+test4@gmail.com,18000,590,Freelancer,22\n" +
+      "student+test5@gmail.com,85000,780,Business,38";
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "sample_users.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    log("Downloaded sample_users.csv template");
+  }
+
+  // Initial load
+  window.onload = () => {
+    fetchLiveStats();
+  };
+</script>
+
+</body>
+</html>

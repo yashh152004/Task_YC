@@ -1,0 +1,231 @@
+{
+  "name": "Workflow B - Matching Engine (3-Stage Optimization Pipeline)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-users",
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "id": "2a3b4c10-0002-4000-8000-000000000001",
+      "name": "Webhook: /new-users",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        340
+      ],
+      "webhookId": "new-users"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  u.user_id, \n  u.email, \n  u.monthly_income, \n  u.credit_score, \n  u.employment_status, \n  u.age, \n  lp.product_id, \n  lp.product_name, \n  lp.bank_name, \n  lp.interest_rate,\n  lp.employment_types\nFROM users u\nCROSS JOIN loan_products lp\nWHERE u.monthly_income >= lp.min_income \n  AND u.credit_score >= lp.min_credit_score;"
+      },
+      "id": "2a3b4c10-0002-4000-8000-000000000002",
+      "name": "Stage 1: SQL Filter (Income & Credit)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [
+        420,
+        340
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "NlSO4eQzWo0Kqw7H",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.employment_types.toLowerCase() }}",
+              "operation": "contains",
+              "value2": "={{ $json.employment_status.toLowerCase() }}"
+            }
+          ]
+        }
+      },
+      "id": "2a3b4c10-0002-4000-8000-000000000003",
+      "name": "Stage 2: Employment String Match?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        660,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "authentication": "none",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{ $env.GEMINI_API_KEY || 'AIzaSyDemoKeyReplaceInEnv' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"User is {{ $json.employment_status }} with income {{ $json.monthly_income }}. Loan requires {{ $json.employment_types }}. Is he likely eligible? Reply YES/NO in one line.\"\n    }]\n  }]\n}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "2a3b4c10-0002-4000-8000-000000000004",
+      "name": "Stage 3: Gemini LLM Edge-Case Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        460
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ ($json.candidates && $json.candidates[0].content.parts[0].text) ? $json.candidates[0].content.parts[0].text.toUpperCase() : 'NO' }}",
+              "operation": "contains",
+              "value2": "YES"
+            }
+          ]
+        }
+      },
+      "id": "2a3b4c10-0002-4000-8000-000000000005",
+      "name": "LLM Said YES?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO matches (user_id, product_id, matched_on)\nVALUES ({{ $json.user_id }}, {{ $json.product_id }}, CURRENT_TIMESTAMP)\nON CONFLICT (user_id, product_id) DO NOTHING;"
+      },
+      "id": "2a3b4c10-0002-4000-8000-000000000006",
+      "name": "Save Match to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [
+        1340,
+        340
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "NlSO4eQzWo0Kqw7H",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/notify",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"matching_complete\",\n  \"triggered_at\": \"{{ $now.toISO() }}\"\n}",
+        "options": {}
+      },
+      "id": "2a3b4c10-0002-4000-8000-000000000007",
+      "name": "Trigger Workflow C (/notify)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1560,
+        340
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: /new-users": {
+      "main": [
+        [
+          {
+            "node": "Stage 1: SQL Filter (Income & Credit)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage 1: SQL Filter (Income & Credit)": {
+      "main": [
+        [
+          {
+            "node": "Stage 2: Employment String Match?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage 2: Employment String Match?": {
+      "main": [
+        [
+          {
+            "node": "Save Match to DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stage 3: Gemini LLM Edge-Case Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage 3: Gemini LLM Edge-Case Check": {
+      "main": [
+        [
+          {
+            "node": "LLM Said YES?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Said YES?": {
+      "main": [
+        [
+          {
+            "node": "Save Match to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Match to DB": {
+      "main": [
+        [
+          {
+            "node": "Trigger Workflow C (/notify)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

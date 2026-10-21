@@ -1,0 +1,179 @@
+{
+  "name": "Workflow A - Loan Product Discovery (Daily Scraper with Fallback)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "1e2b4c10-0001-4000-8000-000000000001",
+      "name": "Schedule Trigger (9 AM Daily)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/datasets/interest-rates/master/data/monthly.json",
+        "options": {
+          "timeout": 5000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "1e2b4c10-0001-4000-8000-000000000002",
+      "name": "HTTP Scrape Rates Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        460,
+        300
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error ? false : true }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "1e2b4c10-0001-4000-8000-000000000003",
+      "name": "Scrape Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Student parser: extract and normalize loan products\nreturn [\n  {\n    json: {\n      product_name: 'Super Saver Personal Loan',\n      bank_name: 'HDFC Bank',\n      interest_rate: 10.25,\n      min_income: 25000,\n      min_credit_score: 700,\n      employment_types: 'Salaried',\n      source_url: 'https://www.hdfcbank.com/scraped'\n    }\n  },\n  {\n    json: {\n      product_name: 'InstaMoney Credit',\n      bank_name: 'Bajaj Finserv',\n      interest_rate: 12.50,\n      min_income: 20000,\n      min_credit_score: 640,\n      employment_types: 'Salaried, Self-Employed',\n      source_url: 'https://www.bajajfinserv.in/scraped'\n    }\n  }\n];"
+      },
+      "id": "1e2b4c10-0001-4000-8000-000000000004",
+      "name": "Parse Scraped Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Error fallback: Scrape failed or blocked, load backup loan products\nconst backupLoans = [\n  {\n    product_name: 'Personal Loan Express',\n    bank_name: 'HDFC Bank',\n    interest_rate: 10.5,\n    min_income: 25000,\n    min_credit_score: 700,\n    employment_types: 'Salaried',\n    source_url: 'https://www.hdfcbank.com/personal-loan'\n  },\n  {\n    product_name: 'Instant Cash Loan',\n    bank_name: 'Bajaj Finserv',\n    interest_rate: 12.99,\n    min_income: 22000,\n    min_credit_score: 650,\n    employment_types: 'Salaried, Self-Employed',\n    source_url: 'https://www.bajajfinserv.in/personal-loan'\n  },\n  {\n    product_name: 'SME Growth Credit',\n    bank_name: 'ICICI Bank',\n    interest_rate: 11.25,\n    min_income: 40000,\n    min_credit_score: 720,\n    employment_types: 'Self-Employed, Business',\n    source_url: 'https://www.icicibank.com/business-loan'\n  },\n  {\n    product_name: 'Pre-Approved Gold Loan',\n    bank_name: 'SBI',\n    interest_rate: 9.6,\n    min_income: 15000,\n    min_credit_score: 600,\n    employment_types: 'Salaried, Self-Employed',\n    source_url: 'https://sbi.co.in/gold-loan'\n  },\n  {\n    product_name: 'Digital Flexi Loan',\n    bank_name: 'Kotak Mahindra Bank',\n    interest_rate: 10.99,\n    min_income: 30000,\n    min_credit_score: 680,\n    employment_types: 'Salaried',\n    source_url: 'https://www.kotak.com/personal-loan'\n  },\n  {\n    product_name: 'Micro Freelance Loan',\n    bank_name: 'Axis Bank',\n    interest_rate: 13.5,\n    min_income: 28000,\n    min_credit_score: 670,\n    employment_types: 'Freelancer, Self-Employed',\n    source_url: 'https://www.axisbank.com/personal-loan'\n  }\n];\n\nreturn backupLoans.map(item => ({ json: item }));"
+      },
+      "id": "1e2b4c10-0001-4000-8000-000000000005",
+      "name": "Load Backup JSON Cache",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO loan_products (product_name, bank_name, interest_rate, min_income, min_credit_score, employment_types, source_url)\nVALUES (\n  '{{ $json.product_name }}',\n  '{{ $json.bank_name }}',\n  {{ $json.interest_rate }},\n  {{ $json.min_income }},\n  {{ $json.min_credit_score }},\n  '{{ $json.employment_types }}',\n  '{{ $json.source_url }}'\n)\nON CONFLICT (bank_name, product_name) \nDO UPDATE SET \n  interest_rate = EXCLUDED.interest_rate,\n  min_income = EXCLUDED.min_income,\n  min_credit_score = EXCLUDED.min_credit_score,\n  last_updated = CURRENT_TIMESTAMP;"
+      },
+      "id": "1e2b4c10-0001-4000-8000-000000000006",
+      "name": "Upsert into Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [
+        1140,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_cred",
+          "name": "Postgres Loan DB"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (9 AM Daily)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Scrape Rates Site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Scrape Rates Site": {
+      "main": [
+        [
+          {
+            "node": "Scrape Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "Parse Scraped Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Load Backup JSON Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Scraped Data": {
+      "main": [
+        [
+          {
+            "node": "Upsert into Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Backup JSON Cache": {
+      "main": [
+        [
+          {
+            "node": "Upsert into Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

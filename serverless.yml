@@ -1,0 +1,99 @@
+service: smart-loan-matcher
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.9
+  region: ${opt:region, 'ap-south-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 30
+  environment:
+    UPLOAD_BUCKET: ${self:custom.bucketName}
+    DB_HOST: ${env:DB_HOST, 'localhost'}
+    DB_PORT: ${env:DB_PORT, '5432'}
+    DB_NAME: ${env:DB_NAME, 'loan_matcher_db'}
+    DB_USER: ${env:DB_USER, 'postgres'}
+    DB_PASSWORD: ${env:DB_PASSWORD, 'postgres123'}
+    N8N_WEBHOOK_URL: ${env:N8N_WEBHOOK_URL, 'http://localhost:5678/webhook/new-users'}
+
+  iam:
+    role:
+      statements:
+        # S3 permissions for bucket upload and download
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:ListBucket
+          Resource:
+            - arn:aws:s3:::${self:custom.bucketName}
+            - arn:aws:s3:::${self:custom.bucketName}/*
+        # AWS SES permissions for sending loan notification emails
+        - Effect: Allow
+          Action:
+            - ses:SendEmail
+            - ses:SendRawEmail
+          Resource: "*"
+
+custom:
+  bucketName: loan-user-uploads-bucket-${sls:stage}
+
+functions:
+  # 1. Lambda to get presigned URL for direct S3 upload from browser
+  getPresignedUrl:
+    handler: lambda/get_presigned_url.lambda_handler
+    events:
+      - http:
+          path: /presigned-url
+          method: get
+          cors: true
+
+  # 2. Lambda to ingest users triggered directly by S3 CSV upload
+  ingestUsers:
+    handler: lambda/ingest_users.lambda_handler
+    events:
+      - s3:
+          bucket: ${self:custom.bucketName}
+          event: s3:ObjectCreated:*
+          rules:
+            - suffix: .csv
+          existing: true
+
+  # 3. Lambda to fetch live dashboard stats for frontend
+  getStats:
+    handler: lambda/get_stats.lambda_handler
+    events:
+      - http:
+          path: /stats
+          method: get
+          cors: true
+
+resources:
+  Resources:
+    # S3 Upload Bucket with CORS allowed for browser uploads
+    UserUploadBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.bucketName}
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders: ['*']
+              AllowedMethods: [GET, PUT, POST, HEAD]
+              AllowedOrigins: ['*']
+              MaxAge: 3000
+
+    # Optional RDS Postgres DB Instance definition for production deployment
+    LoanPostgresDB:
+      Type: AWS::RDS::DBInstance
+      Properties:
+        AllocatedStorage: '20'
+        DBInstanceClass: db.t3.micro
+        DBName: loan_matcher_db
+        Engine: postgres
+        EngineVersion: '14'
+        MasterUsername: postgres
+        MasterUserPassword: ${env:DB_PASSWORD, 'StudentPass2026!'}
+        PubliclyAccessible: true
+        DeletionPolicy: Retain

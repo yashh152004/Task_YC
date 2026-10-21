@@ -1,0 +1,56 @@
+[
+  {
+    "product_name": "Personal Loan Express",
+    "bank_name": "HDFC Bank",
+    "interest_rate": 10.5,
+    "min_income": 25000,
+    "min_credit_score": 700,
+    "employment_types": "Salaried",
+    "source_url": "https://www.hdfcbank.com/personal-loan"
+  },
+  {
+    "product_name": "Instant Cash Loan",
+    "bank_name": "Bajaj Finserv",
+    "interest_rate": 12.99,
+    "min_income": 22000,
+    "min_credit_score": 650,
+    "employment_types": "Salaried, Self-Employed",
+    "source_url": "https://www.bajajfinserv.in/personal-loan"
+  },
+  {
+    "product_name": "SME Growth Credit",
+    "bank_name": "ICICI Bank",
+    "interest_rate": 11.25,
+    "min_income": 40000,
+    "min_credit_score": 720,
+    "employment_types": "Self-Employed, Business",
+    "source_url": "https://www.icicibank.com/business-loan"
+  },
+  {
+    "product_name": "Pre-Approved Gold Loan",
+    "bank_name": "SBI",
+    "interest_rate": 9.6,
+    "min_income": 15000,
+    "min_credit_score": 600,
+    "employment_types": "Salaried, Self-Employed",
+    "source_url": "https://sbi.co.in/gold-loan"
+  },
+  {
+    "product_name": "Digital Flexi Loan",
+    "bank_name": "Kotak Mahindra Bank",
+    "interest_rate": 10.99,
+    "min_income": 30000,
+    "min_credit_score": 680,
+    "employment_types": "Salaried",
+    "source_url": "https://www.kotak.com/personal-loan"
+  },
+  {
+    "product_name": "Micro Freelance Loan",
+    "bank_name": "Axis Bank",
+    "interest_rate": 13.5,
+    "min_income": 28000,
+    "min_credit_score": 670,
+    "employment_types": "Freelancer, Self-Employed",
+    "source_url": "https://www.axisbank.com/personal-loan"
+  }
+]

@@ -1,0 +1,3 @@
+# Dependencies for Lambdas and database connection
+boto3==1.34.40
+psycopg2-binary==2.9.9
