@@ -194,6 +194,7 @@ if __name__ == "__main__":
     print(f">> Open: http://localhost:{PORT}")
     print(f">> Default stats & upload mock endpoints active")
     print(f"==================================================")
+    socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("", PORT), LocalDemoHandler) as httpd:
         try:
             httpd.serve_forever()
